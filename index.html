@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#FDFBF7]">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SoundLog</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              alabaster: '#FDFBF7'
+            },
+            fontFamily: {
+              sans: ['DM Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+              serif: ['Playfair Display', 'Georgia', 'serif']
+            },
+            keyframes: {
+              'modal-in': {
+                '0%': { transform: 'translateY(8px) scale(0.98)', opacity: '0' },
+                '100%': { transform: 'translateY(0) scale(1)', opacity: '1' }
+              }
+            },
+            animation: {
+              'modal-in': 'modal-in 220ms ease-out both'
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="h-full text-stone-900 antialiased">
+    <!-- App Shell -->
+    <div id="app" class="min-h-screen flex flex-col">
+      <!-- Header -->
+      <header class="sticky top-0 z-30 bg-white/80 border-b border-stone-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-3 items-center gap-4">
+          <div class="flex items-center gap-4">
+            <div class="text-2xl font-serif font-semibold tracking-tight">SoundLog.</div>
+            <div class="hidden sm:flex items-center gap-2">
+              <span id="stat-count" class="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-sm">0 Albums Logged</span>
+              <span id="stat-avg" class="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-sm">Avg Rating: 0.0</span>
+            </div>
+          </div>
+          <div class="flex justify-center">
+            <input id="navSearch" type="text" placeholder="Search your entries..." class="w-full max-w-md px-4 py-2 rounded-full bg-stone-100 border border-stone-200 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+          </div>
+          <div class="flex items-center justify-end gap-3">
+            <label class="text-sm text-stone-500">Sort</label>
+            <select id="sort-select" class="px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40">
+              <option value="newest">Newest</option>
+              <option value="rating">Highest Rated</option>
+              <option value="title">Title</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Grid -->
+      <main class="relative flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Backdrop Ketika Kosong -->
+        <div id="inspiration-backdrop" class="pointer-events-none absolute inset-0 z-0"></div>
+        <div id="overlay-prompt" class="hidden absolute inset-0 z-0 flex items-center justify-center">
+          <div class="text-center">
+            <div class="text-3xl sm:text-4xl font-serif text-stone-700">What is the soundtrack of your life today?</div>
+          </div>
+        </div>
+
+        <div id="grid" class="relative z-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"></div>
+        <div id="empty-state" class="hidden mt-24 text-center text-stone-500">No entries yet. Click the + button to log your first album.</div>
+      </main>
+
+      <!-- Add Button -->
+      <button id="fab" title="Add new entry" class="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white shadow-lg flex items-center justify-center text-3xl leading-none">+</button>
+    </div>
+
+    <!--Search & Log Modal -->
+    <div id="searchModal" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/20"></div>
+      <div class="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <div class="rounded-2xl bg-white border border-stone-200 shadow-xl overflow-hidden animate-modal-in max-h-[90vh] flex flex-col">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-stone-200 flex-none">
+            <div class="text-lg font-serif font-semibold">Search & Log</div>
+            <button id="closeSearch" class="text-stone-500 hover:text-stone-700">✕</button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto">
+            <!-- State 1: Search -->
+            <div id="searchState" class="p-6 space-y-4">
+              <input id="searchInput" type="text" placeholder="Search for an album…" class="w-full px-4 py-3 rounded-lg bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+              <div id="searchResults" class="space-y-2"></div>
+            </div>
+
+            <!-- State 2: Journal Form -->
+            <div id="formState" class="hidden p-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <img id="formCover" src="" alt="Album Art" class="w-full aspect-square object-cover rounded-xl border border-stone-200 shadow-sm" />
+                </div>
+                <div class="space-y-4">
+                  <!-- Header: Title + Artist -->
+                  <div>
+                    <div id="formTitle" class="text-xl font-serif font-semibold"></div>
+                    <div id="formArtist" class="text-stone-500"></div>
+                  </div>
+                  <!-- Row 1: Date + Favorite track -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm text-stone-500 mb-1">Date listened</label>
+                      <input id="formDate" type="date" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+                    </div>
+                    <div>
+                      <label class="block text-sm text-stone-500 mb-1">Favorite track</label>
+                      <input id="formFav" type="text" placeholder="e.g. Let It Happen" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+                    </div>
+                  </div>
+                  <!-- Row 2: Star Rating -->
+                  <div>
+                    <div class="flex items-center gap-3">
+                      <div class="text-sm text-stone-500">Rating: <span id="ratingValue" class="font-semibold">5</span></div>
+                      <div id="ratingStars" class="flex items-center gap-1 text-3xl">
+                        <button type="button" class="star" data-v="1" aria-label="1 star">★</button>
+                        <button type="button" class="star" data-v="2" aria-label="2 stars">★</button>
+                        <button type="button" class="star" data-v="3" aria-label="3 stars">★</button>
+                        <button type="button" class="star" data-v="4" aria-label="4 stars">★</button>
+                        <button type="button" class="star" data-v="5" aria-label="5 stars">★</button>
+                      </div>
+                    </div>
+                    <div class="text-xs text-stone-400 mt-1">Click a star to set 1–5</div>
+                  </div>
+                  <!-- Row 3: Tags -->
+                  <div>
+                    <label class="block text-sm text-stone-500 mb-1">Tags</label>
+                    <div id="tagContainer" class="flex flex-wrap items-center gap-2 p-2 rounded-md border border-stone-200 bg-stone-50">
+                      <input id="formTagsInput" type="text" placeholder="Type a tag and press Enter" class="min-w-[12rem] flex-1 px-2 py-1 bg-transparent focus:outline-none" />
+                    </div>
+                    <div class="mt-2 flex items-center gap-2 text-sm">
+                      <span class="text-stone-500 mr-1">Suggestions:</span>
+                      <button type="button" data-tag="Late Night" class="tag-suggest px-2 py-1 rounded-full bg-stone-200 hover:bg-stone-300">Late Night</button>
+                      <button type="button" data-tag="Focus" class="tag-suggest px-2 py-1 rounded-full bg-stone-200 hover:bg-stone-300">Focus</button>
+                      <button type="button" data-tag="Nostalgia" class="tag-suggest px-2 py-1 rounded-full bg-stone-200 hover:bg-stone-300">Nostalgia</button>
+                      <button type="button" data-tag="Morning" class="tag-suggest px-2 py-1 rounded-full bg-stone-200 hover:bg-stone-300">Morning</button>
+                    </div>
+                  </div>
+                  <!-- Row 4: Review -->
+                  <div>
+                    <label class="block text-sm text-stone-500 mb-1">Review</label>
+                    <textarea id="formReview" rows="5" placeholder="Write your thoughts…" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40 font-serif"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fixed Footer -->
+          <div class="flex items-center justify-between gap-3 px-6 py-4 border-t border-stone-200 bg-white/90 backdrop-blur flex-none">
+            <button id="backToSearch" class="px-4 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800">Back</button>
+            <button id="saveEntry" class="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white shadow-sm">Save Entry</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlay: Detail & Read Modal -->
+    <div id="detailModal" class="fixed inset-0 z-50 hidden">
+      <div class="absolute inset-0 bg-black/20"></div>
+      <div class="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-10">
+        <div class="rounded-2xl bg-white border border-stone-200 shadow-xl overflow-hidden animate-modal-in">
+          <div class="flex items-center justify-between px-6 py-4 border-b border-stone-200">
+            <div class="text-lg font-serif font-semibold">Entry</div>
+            <button id="closeDetail" class="text-stone-500 hover:text-stone-700">✕</button>
+          </div>
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <img id="detailCover" src="" alt="Album Art" class="w-full aspect-square object-cover rounded-xl border border-stone-200 shadow-sm" />
+            </div>
+            <div class="space-y-3">
+              <div class="text-xl font-serif font-semibold" id="detailTitle"></div>
+              <div class="text-stone-500" id="detailArtist"></div>
+              <div class="text-orange-600" id="detailMeta"></div>
+              <div>
+                <div class="text-sm text-stone-500">Favorite track</div>
+                <div id="detailFav" class="font-medium"></div>
+              </div>
+              <div>
+                <div class="text-sm text-stone-500">Review</div>
+                <div id="detailReview" class="font-serif leading-relaxed"></div>
+              </div>
+              <div>
+                <div class="text-sm text-stone-500">Tags</div>
+                <div id="detailTags" class="flex flex-wrap gap-2"></div>
+              </div>
+              <div class="pt-2 flex items-center gap-3">
+                <button id="editEntry" class="px-4 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-800">Edit Entry</button>
+                <button id="deleteEntry" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white">Delete Entry</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./src/app.js"></script>
+  </body>
+</html>
