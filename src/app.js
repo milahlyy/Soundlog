@@ -632,7 +632,7 @@ async function fetchInspiration() {
     renderInspiration(results);
     inspirationLoaded = true;
   } catch (e) {
-    inspirationLoaded = true; // Avoid spamming request jika error
+    inspirationLoaded = true; 
   }
 }
 function renderInspiration(results) {

@@ -1,34 +1,6 @@
-/* Small custom styles that complement Tailwind */
 :root { --glow: rgba(0,0,0,0.08); }
 
 html, body { height: 100%; }
-
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-}
-input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px; border-radius: 9999px;
-  background: linear-gradient(90deg, rgba(234,88,12,0.7), rgba(249,115,22,0.7));
-}
-input[type="range"]::-moz-range-track {
-  height: 6px; border-radius: 9999px;
-  background: linear-gradient(90deg, rgba(234,88,12,0.7), rgba(249,115,22,0.7));
-}
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px; height: 18px; border-radius: 9999px;
-  background: white; border: 2px solid rgba(234,88,12,0.8);
-  margin-top: -6px;
-  box-shadow: 0 4px 12px rgba(234,88,12,0.25);
-}
-input[type="range"]::-moz-range-thumb {
-  width: 18px; height: 18px; border-radius: 9999px;
-  background: white; border: 2px solid rgba(234,88,12,0.8);
-  box-shadow: 0 4px 12px rgba(234,88,12,0.25);
-}
 
 /***** Card hover lift (reinforce Tailwind classes) *****/
 .card-hover {
