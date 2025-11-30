@@ -1,28 +1,43 @@
+// ========================================
 // SoundLog SPA — Vanilla JS + Tailwind CDN
-// Data model in localStorage
+// ========================================
+// Single Page Application untuk logging musik dengan sistem rating 10-bintang,
+// tags ekspresif, dan live search filtering via iTunes API.
+
+// Key localStorage untuk menyimpan data Entry
 const STORAGE_KEY = 'soundlog_entries_v1';
 
 /** @typedef {Object} Entry
- * @property {number} id
- * @property {string} apiId
- * @property {string} title
- * @property {string} artist
- * @property {string} coverUrl
- * @property {number} rating // 1-10
- * @property {string[]} tags // expressive tags
- * @property {string} review
- * @property {string} favTrack
- * @property {string} dateLogged // YYYY-MM-DD
+ * @property {number} id - Unique identifier untuk entry
+ * @property {string} apiId - Collection ID dari iTunes API
+ * @property {string} title - Nama album
+ * @property {string} artist - Nama artis/band
+ * @property {string} coverUrl - URL high-res album artwork (1000x1000)
+ * @property {number} rating - Rating skala 1-10
+ * @property {string[]} tags - Array tags ekspresif (e.g., "Late Night", "Focus")
+ * @property {string} review - Catatan/review user tentang album
+ * @property {string} favTrack - Lagu favorit dari album
+ * @property {string} dateLogged - Tanggal mendengar (format YYYY-MM-DD)
  */
 
-let entries = loadEntries();
-let currentSort = 'newest';
-let selectedAlbum = null; // from search (result object)
-let editingId = null; // when editing existing entry
-let navFilter = '';
-let inspirationLoaded = false;
+// ========================================
+// State Management
+// ========================================
+let entries = loadEntries(); // Array semua Entry dari localStorage
+let currentSort = 'newest'; // Mode sorting: 'newest', 'rating', 'title'
+let selectedAlbum = null; // Album yang dipilih dari search result
+let editingId = null; // ID entry yang sedang di-edit (null jika create mode)
+let navFilter = ''; // Query filter dari navbar search
+let inspirationLoaded = false; // Flag untuk empty state backdrop
 
-// DOM refs
+// Search filtering state (Spotify-style)
+let rawSearchResults = []; // Raw hasil dari iTunes API
+let currentSearchFilter = 'all'; // Filter: 'all', 'albums', 'singles'
+
+// ========================================
+// DOM Element Selection
+// ========================================
+// Main Grid & Stats
 const gridEl = document.getElementById('grid');
 const emptyStateEl = document.getElementById('empty-state');
 const statCountEl = document.getElementById('stat-count');
@@ -31,25 +46,25 @@ const navSearch = document.getElementById('navSearch');
 const inspBackdrop = document.getElementById('inspiration-backdrop');
 const overlayPrompt = document.getElementById('overlay-prompt');
 
-const fab = document.getElementById('fab');
+const fab = document.getElementById('fab'); // Floating Action Button (+)
 const sortSelect = document.getElementById('sort-select');
 
-// Search modal refs
+// Search & Log Modal
 const searchModal = document.getElementById('searchModal');
 const closeSearchBtn = document.getElementById('closeSearch');
-const searchState = document.getElementById('searchState');
-const formState = document.getElementById('formState');
+const searchState = document.getElementById('searchState'); // State 1: Search
+const formState = document.getElementById('formState'); // State 2: Form
 const searchInput = document.getElementById('searchInput');
 const searchResults = document.getElementById('searchResults');
 
-// Form refs
+// Form Inputs
 const formCover = document.getElementById('formCover');
 const formTitle = document.getElementById('formTitle');
 const formArtist = document.getElementById('formArtist');
 const formDate = document.getElementById('formDate');
 const ratingValue = document.getElementById('ratingValue');
 const ratingStars = document.getElementById('ratingStars');
-let currentStarRating = 3;
+let currentStarRating = 5; // Default rating (skala 1-10)
 // tag input system
 const tagContainer = document.getElementById('tagContainer');
 const formTagsInput = document.getElementById('formTagsInput');
@@ -59,7 +74,7 @@ const formFav = document.getElementById('formFav');
 const saveEntryBtn = document.getElementById('saveEntry');
 const backToSearchBtn = document.getElementById('backToSearch');
 
-// Detail modal refs
+// Detail modal refs 
 const detailModal = document.getElementById('detailModal');
 const closeDetailBtn = document.getElementById('closeDetail');
 const detailCover = document.getElementById('detailCover');
@@ -97,7 +112,7 @@ function attachHandlers() {
     });
   }
 
-  // live search debounce
+  // Live search debounce - ketika user mengetik di search input
   let searchTimer = null;
   searchInput.addEventListener('input', (e) => {
     const q = e.target.value.trim();
@@ -105,10 +120,30 @@ function attachHandlers() {
     searchTimer = setTimeout(() => {
       if (q.length === 0) {
         searchResults.innerHTML = '';
+        rawSearchResults = [];
         return;
       }
       searchITunes(q);
     }, 250);
+  });
+
+  // Filter Chips (All / Albums / Singles) - Spotify-style
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      currentSearchFilter = chip.getAttribute('data-filter') || 'all';
+      // Update visual state chip
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        if (c === chip) {
+          c.classList.remove('bg-stone-200', 'text-stone-700', 'hover:bg-stone-300');
+          c.classList.add('bg-orange-600', 'text-white');
+        } else {
+          c.classList.remove('bg-orange-600', 'text-white');
+          c.classList.add('bg-stone-200', 'text-stone-700', 'hover:bg-stone-300');
+        }
+      });
+      // Re-render search results dengan filter aktif
+      displaySearchResults(rawSearchResults);
+    });
   });
 
   backToSearchBtn.addEventListener('click', () => {
@@ -183,11 +218,15 @@ function attachHandlers() {
     });
   });
 
+  // Edit Entry Button - Menutup modal detail sebelum membuka form edit agar tidak tumpang tindih
   editEntryBtn.addEventListener('click', () => {
     const id = editEntryBtn.dataset.id ? Number(editEntryBtn.dataset.id) : null;
     if (!id) return;
     const entry = findEntry(id);
     if (!entry) return;
+    // Tutup Detail Modal terlebih dahulu sebelum membuka Search/Form Modal
+    closeDetailModal();
+    // Buka Search Modal dalam mode edit dengan data entry yang dipilih
     openSearchModal('edit', entry);
   });
 
@@ -201,15 +240,22 @@ function attachHandlers() {
   });
 }
 
+// ========================================
+// Rendering Functions
+// ========================================
+
+/** Fungsi utama untuk me-render seluruh UI (Stats + Grid) */
 function renderAll() {
   renderStats();
   renderGrid();
 }
 
+/** Me-render stats di Header (Jumlah entries & Avg rating) */
 function renderStats() {
   const count = entries.length;
+  // Hitung average rating dalam skala 10.0
   const avg = count ? (entries.reduce((a, e) => a + Number(e.rating || 0), 0) / count) : 0;
-  statCountEl.textContent = `${count} Albums Logged`;
+  statCountEl.textContent = `${count} Entries Logged`;
   statAvgEl.textContent = `Avg Rating: ${avg.toFixed(1)}`;
 }
 
@@ -293,32 +339,39 @@ function renderGrid() {
   }
 }
 
-// Modals
+// ========================================
+// Modal Management
+// ========================================
+
+/** 
+ * Buka Search & Log Modal (2 states: Search atau Form)
+ * @param {string} mode - 'create' atau 'edit'
+ * @param {Entry|null} entry - Entry object jika edit mode
+ */
 function openSearchModal(mode = 'create', entry = null) {
   searchModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  
   if (mode === 'create') {
+    // Reset state untuk create new entry
     editingId = null;
     selectedAlbum = null;
     searchInput.value = '';
     searchResults.innerHTML = '';
     formTags = [];
     renderTagChips();
-    setStarRating(3);
+    setStarRating(5); // Default rating di tengah (5/10)
     switchToSearch();
   } else {
-    // edit existing
+    // Populate form untuk edit existing entry
     editingId = entry.id;
-    selectedAlbum = null; // keep null to preserve original meta unless user reselects from search
-    // populate form
+    selectedAlbum = null; // Preserve original metadata
     formCover.src = entry.coverUrl;
     formTitle.textContent = entry.title;
     formArtist.textContent = entry.artist;
     formDate.value = entry.dateLogged || todayStr();
-    // convert old 10-scale to 5 if needed
-    const r = Number(entry.rating);
-    const five = Math.max(1, Math.min(5, Math.round(r > 5 ? r / 2 : r)));
-    setStarRating(five);
+    // Set rating langsung (skala 1-10)
+    setStarRating(Number(entry.rating) || 5);
     formTags = Array.isArray(entry.tags) ? [...entry.tags] : [];
     renderTagChips();
     formFav.value = entry.favTrack || '';
@@ -374,7 +427,6 @@ function loadEntries() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    // migrate older entries lacking tags
     return Array.isArray(arr) ? arr.map(e => ({ ...e, tags: Array.isArray(e.tags) ? e.tags : [] })) : [];
   } catch (e) { return []; }
 }
@@ -394,23 +446,49 @@ function formatDate(iso) {
   try { return new Date(iso).toLocaleDateString(); } catch { return iso; }
 }
 
-// iTunes API search per spec
+// ========================================
+// iTunes API Integration
+// ========================================
+
+/** 
+ * Fetch album data dari iTunes API
+ * @param {string} query - Search term dari user input
+ */
 async function searchITunes(query) {
   const term = query.replace(/\s+/g, '+');
-  const url = `https://itunes.apple.com/search?term=${term}&entity=album&limit=5`;
+  const url = `https://itunes.apple.com/search?term=${term}&entity=album&limit=20`;
 
   try {
     const response = await fetch(url);
     const data = await response.json();
-    displaySearchResults(data.results);
+    // Simpan raw results untuk filtering
+    rawSearchResults = Array.isArray(data.results) ? data.results : [];
+    displaySearchResults(rawSearchResults);
   } catch (error) {
     console.error('Search failed:', error);
+    rawSearchResults = [];
   }
 }
 
+/**
+ * Me-render hasil search dengan filtering (All / Albums / Singles)
+ * Filter berdasarkan trackCount:
+ * - Singles/EPs: trackCount <= 1
+ * - Albums: trackCount > 1
+ */
 function displaySearchResults(results) {
   searchResults.innerHTML = '';
-  for (const r of results) {
+  
+  // Apply filter berdasarkan currentSearchFilter
+  let filtered = results;
+  if (currentSearchFilter === 'albums') {
+    filtered = results.filter(r => (r.trackCount || 0) > 1);
+  } else if (currentSearchFilter === 'singles') {
+    filtered = results.filter(r => (r.trackCount || 0) <= 1);
+  }
+
+  // Render hasil yang sudah difilter
+  for (const r of filtered) {
     const item = document.createElement('button');
     item.className = 'w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 border border-stone-200 text-left';
 
@@ -433,14 +511,15 @@ function displaySearchResults(results) {
     block.appendChild(t); block.appendChild(a);
     item.appendChild(img); item.appendChild(block);
 
+    // Handler ketika user memilih album dari list
     item.addEventListener('click', () => {
       selectedAlbum = r;
-      // populate form state
+      // Membuat form dengan data album yang dipilih
       formCover.src = hiResArtwork(r.artworkUrl100);
       formTitle.textContent = r.collectionName;
       formArtist.textContent = r.artistName;
       formDate.value = todayStr();
-      setStarRating(3);
+      setStarRating(5); // Default rating di tengah (5/10)
       formTags = [];
       renderTagChips();
       formReview.value = '';
@@ -450,17 +529,35 @@ function displaySearchResults(results) {
 
     searchResults.appendChild(item);
   }
+
+  // Show empty state jika tidak ada hasil
+  if (filtered.length === 0 && results.length > 0) {
+    const empty = document.createElement('div');
+    empty.className = 'text-center text-sm text-stone-400 py-4';
+    empty.textContent = 'No results match this filter';
+    searchResults.appendChild(empty);
+  }
 }
 
+/** 
+ * Convert artwork URL dari 100x100 ke 1000x1000 untuk high-res display
+ * @param {string} url100 - URL artwork 100x100 dari iTunes API
+ * @returns {string} URL artwork 1000x1000
+ */
 function hiResArtwork(url100) {
   try { return url100.replace('100x100bb', '1000x1000bb'); } catch { return url100; }
 }
 
+/**
+ * Update state dan visual bintang rating (skala 1-10)
+ * @param {number} v - Rating value (1-10)
+ */
 function setStarRating(v) {
-  currentStarRating = Math.max(1, Math.min(5, Number(v) || 1));
+  currentStarRating = Math.max(1, Math.min(10, Number(v) || 1));
   if (ratingStars) {
     ratingStars.querySelectorAll('.star').forEach(btn => {
       const val = Number(btn.getAttribute('data-v')) || 1;
+      // Toggle warna bintang: orange jika <= rating, abu-abu jika > rating
       btn.classList.toggle('text-orange-600', val <= currentStarRating);
       btn.classList.toggle('text-stone-300', val > currentStarRating);
     });
@@ -468,39 +565,64 @@ function setStarRating(v) {
   if (ratingValue) ratingValue.textContent = String(currentStarRating);
 }
 
-// Tag helpers
+// ========================================
+// Tag Input System (Expressive Tags)
+// ========================================
+
+/** Sanitize tag input - trim, normalize spacing, max 24 char */
 function sanitizeTag(t) { return (t || '').trim().replace(/\s+/g, ' ').slice(0, 24); }
+
+/** Tambahkan tag baru ke formTags (hindari duplikat) */
 function addTag(t) {
   if (!formTags.includes(t)) {
     formTags.push(t);
     renderTagChips();
   }
 }
+
+/** Hapus tag dari formTags */
 function removeTag(t) {
   formTags = formTags.filter(x => x !== t);
   renderTagChips();
 }
+
+/** 
+ * Render tag chips dengan remove button (×)
+ * Input field selalu di akhir
+ */
 function renderTagChips() {
   if (!tagContainer) return;
-  // preserve input element at end
   const input = formTagsInput;
   tagContainer.innerHTML = '';
+  
+  // Render setiap tag sebagai chip dengan button × untuk remove
   formTags.forEach(t => {
     const chip = document.createElement('span');
     chip.className = 'inline-flex items-center gap-1 px-2 py-1 rounded-full bg-stone-200 text-sm';
     chip.textContent = t;
+    
     const x = document.createElement('button');
     x.type = 'button';
     x.className = 'text-stone-600 hover:text-stone-800';
     x.textContent = '×';
     x.addEventListener('click', () => removeTag(t));
     chip.appendChild(x);
+    
     tagContainer.appendChild(chip);
   });
+  
+  // Preserve input field di akhir
   tagContainer.appendChild(input);
 }
 
-// Alive Empty State
+// ========================================
+// Alive Empty State (Inspiration Backdrop)
+// ========================================
+
+/**
+ * Fetch album inspirasi dari iTunes API untuk empty state backdrop
+ * Menampilkan 24 album cover grayscale + low opacity sebagai background
+ */
 async function fetchInspiration() {
   try {
     const url = 'https://itunes.apple.com/search?term=classic+rock&entity=album&limit=24';
@@ -510,7 +632,7 @@ async function fetchInspiration() {
     renderInspiration(results);
     inspirationLoaded = true;
   } catch (e) {
-    inspirationLoaded = true; // avoid spamming
+    inspirationLoaded = true; // Avoid spamming request jika error
   }
 }
 function renderInspiration(results) {

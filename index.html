@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-[#FDFBF7]">
+<html lang="en" class="h-full bg-alabaster">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -36,6 +36,7 @@
       }
     </script>
     <link rel="stylesheet" href="./styles.css" />
+    
   </head>
   <body class="h-full text-stone-900 antialiased">
     <!-- App Shell -->
@@ -43,16 +44,21 @@
       <!-- Header -->
       <header class="sticky top-0 z-30 bg-white/80 border-b border-stone-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-3 items-center gap-4">
+
           <div class="flex items-center gap-4">
             <div class="text-2xl font-serif font-semibold tracking-tight">SoundLog.</div>
             <div class="hidden sm:flex items-center gap-2">
-              <span id="stat-count" class="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-sm">0 Albums Logged</span>
+              <span id="stat-count" class="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-sm">0 Entries Logged</span>
               <span id="stat-avg" class="px-3 py-1 rounded-full bg-stone-100 border border-stone-200 text-sm">Avg Rating: 0.0</span>
             </div>
           </div>
+
+          <!-- search entries -->
           <div class="flex justify-center">
             <input id="navSearch" type="text" placeholder="Search your entries..." class="w-full max-w-md px-4 py-2 rounded-full bg-stone-100 border border-stone-200 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
           </div>
+
+          <!-- sort entries -->
           <div class="flex items-center justify-end gap-3">
             <label class="text-sm text-stone-500">Sort</label>
             <select id="sort-select" class="px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40">
@@ -78,7 +84,7 @@
         <div id="empty-state" class="hidden mt-24 text-center text-stone-500">No entries yet. Click the + button to log your first album.</div>
       </main>
 
-      <!-- Add Button -->
+      <!-- Button untuk menambahkan entri -->
       <button id="fab" title="Add new entry" class="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full bg-orange-600 hover:bg-orange-500 active:bg-orange-700 text-white shadow-lg flex items-center justify-center text-3xl leading-none">+</button>
     </div>
 
@@ -97,6 +103,13 @@
             <!-- State 1: Search -->
             <div id="searchState" class="p-6 space-y-4">
               <input id="searchInput" type="text" placeholder="Search for an album…" class="w-full px-4 py-3 rounded-lg bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+              <!-- Filter Chips -->
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-stone-500">Filter:</span>
+                <button data-filter="all" class="filter-chip px-3 py-1 rounded-full bg-orange-600 text-white text-sm">All</button>
+                <button data-filter="albums" class="filter-chip px-3 py-1 rounded-full bg-stone-200 text-stone-700 hover:bg-stone-300 text-sm">Albums</button>
+                <button data-filter="singles" class="filter-chip px-3 py-1 rounded-full bg-stone-200 text-stone-700 hover:bg-stone-300 text-sm">Singles/EPs</button>
+              </div>
               <div id="searchResults" class="space-y-2"></div>
             </div>
 
@@ -120,22 +133,27 @@
                     </div>
                     <div>
                       <label class="block text-sm text-stone-500 mb-1">Favorite track</label>
-                      <input id="formFav" type="text" placeholder="e.g. Let It Happen" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
+                      <input id="formFav" type="text" placeholder="e.g. Cowboy Like Me" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40" />
                     </div>
                   </div>
                   <!-- Row 2: Star Rating -->
                   <div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
                       <div class="text-sm text-stone-500">Rating: <span id="ratingValue" class="font-semibold">5</span></div>
-                      <div id="ratingStars" class="flex items-center gap-1 text-3xl">
-                        <button type="button" class="star" data-v="1" aria-label="1 star">★</button>
-                        <button type="button" class="star" data-v="2" aria-label="2 stars">★</button>
-                        <button type="button" class="star" data-v="3" aria-label="3 stars">★</button>
-                        <button type="button" class="star" data-v="4" aria-label="4 stars">★</button>
-                        <button type="button" class="star" data-v="5" aria-label="5 stars">★</button>
+                      <div id="ratingStars" class="flex items-center gap-0.5 text-3xl">
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="1" aria-label="1 star">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="2" aria-label="2 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="3" aria-label="3 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="4" aria-label="4 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="5" aria-label="5 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="6" aria-label="6 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="7" aria-label="7 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="8" aria-label="8 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="9" aria-label="9 stars">★</button>
+                        <button type="button" class="star p-1 hover:scale-110 transition-transform" data-v="10" aria-label="10 stars">★</button>
                       </div>
                     </div>
-                    <div class="text-xs text-stone-400 mt-1">Click a star to set 1–5</div>
+                    <div class="text-xs text-stone-400 mt-1">Click a star to set 1–10</div>
                   </div>
                   <!-- Row 3: Tags -->
                   <div>
@@ -154,7 +172,7 @@
                   <!-- Row 4: Review -->
                   <div>
                     <label class="block text-sm text-stone-500 mb-1">Review</label>
-                    <textarea id="formReview" rows="5" placeholder="Write your thoughts…" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40 font-serif"></textarea>
+                    <textarea id="formReview" rows="5" placeholder="Write your thoughts…" class="w-full px-3 py-2 rounded-md bg-stone-100 border border-stone-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40 font-sans"></textarea>
                   </div>
                 </div>
               </div>
@@ -193,7 +211,7 @@
               </div>
               <div>
                 <div class="text-sm text-stone-500">Review</div>
-                <div id="detailReview" class="font-serif leading-relaxed"></div>
+                <div id="detailReview" class="font-sans leading-relaxed"></div>
               </div>
               <div>
                 <div class="text-sm text-stone-500">Tags</div>

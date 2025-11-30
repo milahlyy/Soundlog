@@ -3,7 +3,6 @@
 
 html, body { height: 100%; }
 
-/***** Range input (rating slider) *****/
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;

@@ -1,4 +1,3 @@
-/** Tailwind configuration (for future builds). The app uses Tailwind CDN for immediate usage. */
 module.exports = {
   content: [
     './index.html',
